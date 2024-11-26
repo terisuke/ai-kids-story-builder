@@ -10,7 +10,7 @@ function ImageStyle({userSelection}:any) {
     isFree:true
   },
   {
-    label:"シンプル",
+    label:"パステル",
     imageUrl:"/simple.png",
     isFree:true
   },

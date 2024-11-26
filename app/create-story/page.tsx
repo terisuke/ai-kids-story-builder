@@ -1,15 +1,19 @@
 "use client"
+import axios from "axios";
 import StorySubjectInput from "./_components/StorySubjectInput";
 import StoryType from "./_components/StoryType";
 import AgeGroup from "./_components/AgeGroup";
 import ImageStyle from "./_components/ImageStyle";
 import { Button } from "@nextui-org/react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Notifications, { notify } from 'react-notify-toast';
 import { chatSession } from "@/config/GeminiAi";
 import { db } from "@/config/db";
 import { StoryData } from "@/config/schema";
 import uuid4  from 'uuid4';
 import CustomLoader from "./_components/CustomLoader";
+
 const CREATE_STORY_PROMPT = process.env.NEXT_PUBLIC_CREATE_STORY_PROMPT;
 
 export  interface fieldData {
@@ -25,7 +29,8 @@ export interface formData {
 export default function CreateStory() {
   const [formData,setFormData] = useState<formData>();
   const [loading,setLoading] = useState(false);
-  /** 
+  const router = useRouter();
+  /**
    * used to add data to <form action=""></form>
    * @param data:fieldData
    */
@@ -35,7 +40,7 @@ export default function CreateStory() {
   }
 
       //Save to DB
-      const SaveToDB = async(output:string)=>{
+      const SaveToDB = async(output:string,imageUrl:string)=>{
         const recordId=uuid4();
         try{
           setLoading(true);
@@ -45,7 +50,8 @@ export default function CreateStory() {
           storyType:formData?.storyType,
           ageGroup:formData?.ageGroup,
           imageStyle:formData?.imageStyle,
-          output:JSON.parse(output)
+          output:JSON.parse(output),
+          coverImage:imageUrl
         }).returning({storyId:StoryData?.storyId});
         setLoading(false);
         return result;
@@ -54,7 +60,7 @@ export default function CreateStory() {
         setLoading(false);
       }
       }
-      //Generate Image
+  //Generate Image
   const GenerateStory = async()=>{
     setLoading(true);
     const FINAL_PROMPT =CREATE_STORY_PROMPT
@@ -65,17 +71,31 @@ export default function CreateStory() {
     //Generate AI Story
     try{
       const result = await chatSession.sendMessage(FINAL_PROMPT);
-      console.log(result?.response.text());
-      const response = await SaveToDB(result?.response.text());
+      const storyText=JSON.parse(result?.response.text());
+      const imageResponse = await axios.post("/api/generate-image",{
+        prompt:"Add text with title:"+storyText?.title+" in bold text for Book Cover:"+storyText?.cover_image_prompt
+      })
+      // imageUrlを直接文字列として取得
+    const AiImageUrl = imageResponse.data as string;
+    const imageResult:any=await axios.post("/api/save-image",{
+      url:AiImageUrl
+    })
+    const FirebaseStorageImageUrl=imageResult.data.downloadUrl
+    //Save to DB
+    const response:any = await SaveToDB(result?.response.text(),FirebaseStorageImageUrl);
       console.log(response);
+      notify.show("ストーリーが作成されました!", "success");
+      router?.replace("/view-story/"+response[0].storyId)
       setLoading(false);
     }catch(error){
       console.log(error);
+      notify.show("ストーリーの作成に失敗しました。", "error");
       setLoading(false);
     }
   }
   return (
     <div className="p-10 md:px-20 lg:px-40">
+      <Notifications />
       <h2 className="font-extrabold text-[70px] text-primary text-center">
         ストーリー作成
       </h2>
