@@ -1,18 +1,18 @@
 "use client"
-import axios from "axios";
-import StorySubjectInput from "./_components/StorySubjectInput";
-import StoryType from "./_components/StoryType";
-import AgeGroup from "./_components/AgeGroup";
-import ImageStyle from "./_components/ImageStyle";
-import { Button } from "@nextui-org/react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Notifications, { notify } from 'react-notify-toast';
 import { chatSession } from "@/config/GeminiAi";
 import { db } from "@/config/db";
 import { StoryData } from "@/config/schema";
-import uuid4  from 'uuid4';
+import { Button } from "@nextui-org/react";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import Notifications, { notify } from 'react-notify-toast';
+import uuid4 from 'uuid4';
+import AgeGroup from "./_components/AgeGroup";
 import CustomLoader from "./_components/CustomLoader";
+import ImageStyle from "./_components/ImageStyle";
+import StorySubjectInput from "./_components/StorySubjectInput";
+import StoryType from "./_components/StoryType";
 
 const CREATE_STORY_PROMPT = process.env.NEXT_PUBLIC_CREATE_STORY_PROMPT;
 
@@ -70,10 +70,11 @@ export default function CreateStory() {
     .replace("{storySubject}",formData?.storySubject??'');
     //Generate AI Story
     try{
-      const result = await chatSession.sendMessage(FINAL_PROMPT);
-      const storyText=JSON.parse(result?.response.text());
+      const result = await chatSession.sendMessage(FINAL_PROMPT!);
+      const responseText = await result?.response.text();
+      const storyText = JSON.parse(responseText);
       const imageResponse = await axios.post("/api/generate-image",{
-        prompt:"Add text with title:"+storyText?.title+" in bold text for Book Cover:"+storyText?.cover_image_prompt
+        prompt: `Add text with title: ${storyText?.title} in bold text for Book Cover: ${storyText?.cover_image_prompt}`
       })
       // imageUrlを直接文字列として取得
     const AiImageUrl = imageResponse.data as string;
